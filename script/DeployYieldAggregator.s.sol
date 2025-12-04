@@ -1,53 +1,51 @@
+// script/DeployAutomation.s.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import {Script} from "forge-std/Script.sol";
-import {Diamond} from "../src/Diamond.sol";
-import {YieldAggregatorFacet} from "../src/facets/utilityFacets/yieldAggregator/YieldAggregatorFacet.sol";
-import {AaveStrategy} from "../src/facets/utilityFacets/yieldAggregator/strategies/AaveStrategy.sol";
+import {AutomationFacet} from "../src/facets/utilityFacets/yieldAggregator/AutomationFacet.sol";
+import {GelatoAutomationFacet} from "../src/facets/utilityFacets/yieldAggregator/GelatoAutomationFacet.sol";
 import {IDiamondCut} from "../src/facets/baseFacets/cut/IDiamondCut.sol";
 
-contract DeployYieldAggregator is Script {
-    
+contract DeployAutomation is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_ANVIL");
-        address diamondAddress = vm.envAddress("DIAMOND_ADDRESS"); // Set this after initial deploy
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address diamondAddress = vm.envAddress("DIAMOND_ADDRESS");
         
         vm.startBroadcast(deployerPrivateKey);
         
-        // 1. Deploy YieldAggregatorFacet
-        YieldAggregatorFacet yieldFacet = new YieldAggregatorFacet();
-        console.log("YieldAggregatorFacet deployed:", address(yieldFacet));
+        // Choose ONE: Chainlink OR Gelato
         
-        // 2. Deploy AaveStrategy
-        address aavePoolAddress = 0x... // Get from chain
-        AaveStrategy aaveStrategy = new AaveStrategy(aavePoolAddress);
-        console.log("AaveStrategy deployed:", address(aaveStrategy));
+        // ═══ OPTION A: CHAINLINK ═══
+        AutomationFacet chainlinkFacet = new AutomationFacet();
+        console.log("Chainlink Automation Facet:", address(chainlinkFacet));
         
-        // 3. Prepare DiamondCut
+        // Prepare function selectors
+        bytes4[] memory selectors = new bytes4[](6);
+        selectors[0] = AutomationFacet.checkUpkeep.selector;
+        selectors[1] = AutomationFacet.performUpkeep.selector;
+        selectors[2] = AutomationFacet.configureAutomation.selector;
+        selectors[3] = AutomationFacet.pauseAutomation.selector;
+        selectors[4] = AutomationFacet.getRebalanceStatus.selector;
+        selectors[5] = AutomationFacet.getAutomationConfig.selector;
+        
+        // Add to Diamond
         IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](1);
-        
-        bytes4[] memory selectors = new bytes4[](8);
-        selectors[0] = YieldAggregatorFacet.deposit.selector;
-        selectors[1] = YieldAggregatorFacet.withdraw.selector;
-        selectors[2] = YieldAggregatorFacet.rebalance.selector;
-        selectors[3] = YieldAggregatorFacet.addStrategy.selector;
-        selectors[4] = YieldAggregatorFacet.removeStrategy.selector;
-        selectors[5] = YieldAggregatorFacet.setRebalanceThreshold.selector;
-        selectors[6] = YieldAggregatorFacet.getUserBalance.selector;
-        selectors[7] = YieldAggregatorFacet.getCurrentAPY.selector;
-        
         cuts[0] = IDiamondCut.FacetCut({
-            facetAddress: address(yieldFacet),
+            facetAddress: address(chainlinkFacet),
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: selectors
         });
         
-        // 4. Execute DiamondCut
-        Diamond diamond = Diamond(payable(diamondAddress));
         IDiamondCut(diamondAddress).diamondCut(cuts, address(0), "");
         
-        console.log("YieldAggregator facet added to Diamond");
+        // Configure automation
+        AutomationFacet(diamondAddress).configureAutomation(
+            3600,  // 1 hour cooldown
+            true   // enabled
+        );
+        
+        console.log("Automation configured with 1 hour cooldown");
         
         vm.stopBroadcast();
     }

@@ -38,6 +38,10 @@ library YieldAggregatorStorage {
         // Strategy management
         mapping(address => StrategyInfo[]) assetStrategies; // asset => strategies
         mapping(address => address) bestStrategy; // asset => best strategy address
+        mapping(address => uint256) lastRebalanceTime;  // asset => timestamp
+        uint256 rebalanceCooldown;                      // Minimum time between rebalances
+        address automationRegistry;                      // Chainlink/Gelato registry
+        bool automationEnabled;                          // Master switch
         
         // Protocol addresses
         address aavePool;
