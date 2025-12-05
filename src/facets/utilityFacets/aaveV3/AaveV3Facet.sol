@@ -93,10 +93,4 @@ contract AaveV3Facet is AaveV3Base, Facet, ReentrancyGuard {
     function withdrawFromAave(address tokenIn, uint256 amountToWithdraw) external onlyDiamondOwner nonReentrant {
         _withdraw(tokenIn, amountToWithdraw);
     }
-    // Add to AaveV3Facet.sol
-function initializeAavePool(address _aavePool) external onlyOwner {
-    AaveV3Storage.Layout storage s = AaveV3Storage.layout();
-    require(s.aavePool == address(0), "Already initialized");
-    s.aavePool = _aavePool;
-}
 }
