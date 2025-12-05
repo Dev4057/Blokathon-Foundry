@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT License
-pragma solidity >=0.8.20;
+pragma solidity ^0.8.0;
 
 /*###############################################################################
 
@@ -22,6 +22,8 @@ library AaveV3Storage {
 
     /// @notice Layout for the AaveV3Storage
     struct Layout {
+        /// @notice Address of the Aave V3 Pool
+        address aavePool;
         /// @notice Timestamp of the last lend operation
         uint256 lastLendTimestamp;
     }

@@ -1,40 +1,51 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
 /*###############################################################################
 
-    @title Facet
+    @title Facet Base Contract
     @author BLOK Capital DAO
-    @notice Abstract base contract providing common functionality for all facets
-    @dev All facets should inherit from this contract to access the following:
-         - Reentrancy protection using ReentrancyGuardUpgradeable
-         - Owner-only access control using onlyDiamondOwner modifier
-         - Diamond storage pattern to access ownership state
+    @notice Base contract that all facets inherit from
+    @dev Provides common modifiers and utilities for facets
 
     ▗▄▄▖ ▗▖    ▗▄▖ ▗▖ ▗▖     ▗▄▄▖ ▗▄▖ ▗▄▄▖▗▄▄▄▖▗▄▄▄▖▗▄▖ ▗▖       ▗▄▄▄  ▗▄▖  ▗▄▖ 
     ▐▌ ▐▌▐▌   ▐▌ ▐▌▐▌▗▞▘    ▐▌   ▐▌ ▐▌▐▌ ▐▌ █    █ ▐▌ ▐▌▐▌       ▐▌  █▐▌ ▐▌▐▌ ▐▌
     ▐▛▀▚▖▐▌   ▐▌ ▐▌▐▛▚▖     ▐▌   ▐▛▀▜▌▐▛▀▘  █    █ ▐▛▀▜▌▐▌       ▐▌  █▐▛▀▜▌▐▌ ▐▌
     ▐▙▄▞▘▐▙▄▄▖▝▚▄▞▘▐▌ ▐▌    ▝▚▄▄▖▐▌ ▐▌▐▌  ▗▄█▄▖  █ ▐▌ ▐▌▐▙▄▄▖    ▐▙▄▄▀▐▌ ▐▌▝▚▄▞▘
 
-
 ################################################################################*/
 
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {OwnershipStorage} from "src/facets/baseFacets/ownership/OwnershipStorage.sol";
+import {OwnershipStorage} from "./baseFacets/ownership/OwnershipStorage.sol";
 
-/// @notice Thrown when caller is not the diamond owner
-error Diamond_UnauthorizedCaller();
+abstract contract Facet {
+    
+    /// @notice Modifier to restrict functions to contract owner only
+    modifier onlyOwner() {
+        require(
+            msg.sender == OwnershipStorage.layout().owner,
+            "Facet: caller is not the owner"
+        );
+        _;
+    }
 
-/// @notice Thrown when a function is called while the garden is connected to an index
-error Facet_CannotCallIfConnectedToIndex();
-
-abstract contract Facet is ReentrancyGuardUpgradeable {
-    /// @notice Restricts function access to the diamond contract owner
-    /// @dev Checks msg.sender against owner stored in OwnershipStorage
+    /// @notice Modifier to restrict functions to diamond owner only (alias for onlyOwner)
     modifier onlyDiamondOwner() {
-        if (msg.sender != OwnershipStorage.layout().owner) {
-            revert Diamond_UnauthorizedCaller();
-        }
+        require(
+            msg.sender == OwnershipStorage.layout().owner,
+            "Facet: caller is not the diamond owner"
+        );
+        _;
+    }
+
+    /// @notice Modifier to ensure non-zero address
+    modifier notZeroAddress(address _address) {
+        require(_address != address(0), "Facet: zero address");
+        _;
+    }
+
+    /// @notice Modifier to ensure non-zero amount
+    modifier notZeroAmount(uint256 _amount) {
+        require(_amount > 0, "Facet: zero amount");
         _;
     }
 }

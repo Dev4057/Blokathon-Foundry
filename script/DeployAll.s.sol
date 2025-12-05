@@ -1,198 +1,119 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.0;
 
-import {Script} from "forge-std/Script.sol";
-import {console} from "forge-std/console.sol";
+import "forge-std/Script.sol";
 
-// 1. Interfaces & Core
+// Interfaces
 import {IDiamondCut} from "src/facets/baseFacets/cut/IDiamondCut.sol";
-import {IDiamondLoupe} from "src/facets/baseFacets/loupe/IDiamondLoupe.sol";
-import {IERC173} from "src/interfaces/IERC173.sol";
-import {IERC165} from "src/interfaces/IERC165.sol";
 
-// 2. Base Contracts
+// Contracts
 import {Diamond} from "src/Diamond.sol";
 import {DiamondCutFacet} from "src/facets/baseFacets/cut/DiamondCutFacet.sol";
 import {DiamondLoupeFacet} from "src/facets/baseFacets/loupe/DiamondLoupeFacet.sol";
 import {OwnershipFacet} from "src/facets/baseFacets/ownership/OwnershipFacet.sol";
 
-// 3. Logic Contracts (The Business Logic)
 import {YieldAggregatorFacet} from "src/facets/utilityFacets/yieldAggregator/YieldAggregatorFacet.sol";
 import {GelatoAutomationFacet} from "src/facets/utilityFacets/yieldAggregator/GelatoAutomationFacet.sol";
 import {AaveV3Facet} from "src/facets/utilityFacets/aaveV3/AaveV3Facet.sol";
-
-// 4. Strategies
 import {AaveStrategy} from "src/facets/utilityFacets/yieldAggregator/strategies/AaveStrategy.sol";
 
 contract DeployAll is Script {
-    // Configuration (SEPOLIA EXAMPLES - CHANGE FOR MAINNET)
-    address constant AAVE_POOL = 0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951; // Sepolia Aave Pool
-    address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;      // Sepolia USDC
-    address constant GELATO_OPS = 0xB3f5503f93d5Ef84b06993a1975B9D21B962892F; // Gelato Ops
-    
-    // State variables to hold deployed addresses
-    Diamond diamond;
-    DiamondCutFacet dCut;
-    DiamondLoupeFacet dLoupe;
-    OwnershipFacet ownerF;
-    YieldAggregatorFacet yieldF;
-    GelatoAutomationFacet gelatoF;
-    AaveV3Facet aaveF;
-    AaveStrategy aaveStrategy;
+    // Config (Sepolia)
+    address constant AAVE_POOL = 0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951;
+    address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
 
-    function run() public {
-        // 1. Setup
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_ANVIL");
-        address deployer = vm.addr(deployerPrivateKey);
-        
-        vm.startBroadcast(deployerPrivateKey);
+    function run() external {
+        uint256 key = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(key);
+        vm.startBroadcast(key);
 
-        // =========================================================
-        // PHASE 1: Deploy Base System (The Container)
-        // =========================================================
-        
-        // 1. Deploy Base Facets
-        dCut = new DiamondCutFacet();
-        dLoupe = new DiamondLoupeFacet();
-        ownerF = new OwnershipFacet();
-        
+        // 1. Base Facets
+        DiamondCutFacet dCut = new DiamondCutFacet();
+        DiamondLoupeFacet dLoupe = new DiamondLoupeFacet();
+        OwnershipFacet ownerF = new OwnershipFacet();
+
         // 2. Prepare Base Cuts
         IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](3);
-        
-        cuts[0] = IDiamondCut.FacetCut({
-            facetAddress: address(dCut),
-            action: IDiamondCut.FacetCutAction.Add,
-            functionSelectors: getSelectorsCut()
-        });
-        
-        cuts[1] = IDiamondCut.FacetCut({
-            facetAddress: address(dLoupe),
-            action: IDiamondCut.FacetCutAction.Add,
-            functionSelectors: getSelectorsLoupe()
-        });
-        
-        cuts[2] = IDiamondCut.FacetCut({
-            facetAddress: address(ownerF),
-            action: IDiamondCut.FacetCutAction.Add,
-            functionSelectors: getSelectorsOwnership()
-        });
+        cuts[0] = cut(address(dCut), getSelectorsForDiamondCut());
+        cuts[1] = cut(address(dLoupe), getSelectorsForDiamondLoupe());
+        cuts[2] = cut(address(ownerF), getSelectorsForOwnership());
 
         // 3. Deploy Diamond
-        diamond = new Diamond(deployer, cuts);
-        console.log("--------------------------------------------------");
-        console.log("DIAMOND DEPLOYED AT:", address(diamond));
-        console.log("--------------------------------------------------");
+        Diamond diamond = new Diamond(deployer, cuts);
+        console.log("Diamond:", address(diamond));
 
-        // =========================================================
-        // PHASE 2: Deploy Business Logic (The Features)
-        // =========================================================
-        
-        yieldF = new YieldAggregatorFacet();
-        gelatoF = new GelatoAutomationFacet();
-        aaveF = new AaveV3Facet();
-        
-        // =========================================================
-        // PHASE 3: Cut Logic into Diamond
-        // =========================================================
-        
-        IDiamondCut.FacetCut[] memory logicCuts = new IDiamondCut.FacetCut[](3);
-        
-        logicCuts[0] = IDiamondCut.FacetCut({
-            facetAddress: address(yieldF),
-            action: IDiamondCut.FacetCutAction.Add,
-            functionSelectors: getSelectorsYield()
-        });
-        
-        logicCuts[1] = IDiamondCut.FacetCut({
-            facetAddress: address(gelatoF),
-            action: IDiamondCut.FacetCutAction.Add,
-            functionSelectors: getSelectorsGelato()
-        });
-        
-        logicCuts[2] = IDiamondCut.FacetCut({
-            facetAddress: address(aaveF),
-            action: IDiamondCut.FacetCutAction.Add,
-            functionSelectors: getSelectorsAave()
-        });
+        // 4. Utility Facets
+        YieldAggregatorFacet yieldFacet = new YieldAggregatorFacet();
+        GelatoAutomationFacet gelatoFacet = new GelatoAutomationFacet();
+        AaveV3Facet aaveFacet = new AaveV3Facet();
 
-        DiamondCutFacet(address(diamond)).diamondCut(logicCuts, address(0), "");
-        console.log("Business Logic Added");
+        IDiamondCut.FacetCut[] memory utilityCuts = new IDiamondCut.FacetCut[](3);
+        utilityCuts[0] = cut(address(yieldFacet), getSelectorsForYieldAggregator());
+        utilityCuts[1] = cut(address(gelatoFacet), getSelectorsForGelato());
+        utilityCuts[2] = cut(address(aaveFacet), getSelectorsForAave());
 
-        // =========================================================
-        // PHASE 4: Initialization & Strategy Setup
-        // =========================================================
+        DiamondCutFacet(address(diamond)).diamondCut(utilityCuts, address(0), "");
 
-        // 1. Deploy Strategy
-        aaveStrategy = new AaveStrategy(AAVE_POOL);
-        console.log("AaveStrategy Deployed:", address(aaveStrategy));
-
-        // 2. Whitelist Strategy in Diamond
-        // Note: We cast the Diamond address to the Facet interface to call the function
+        // 5. Deploy & Register Strategy
+        AaveStrategy aaveStrategy = new AaveStrategy(AAVE_POOL);
         YieldAggregatorFacet(address(diamond)).addStrategy(USDC, address(aaveStrategy));
         YieldAggregatorFacet(address(diamond)).setRebalanceThreshold(50); // 0.5%
-        
-        console.log("Strategy Whitelisted in Diamond");
-
-        // 3. Configure Automation
-        GelatoAutomationFacet(address(diamond)).configureGelatoAutomation(
-            1 hours, // Cooldown
-            true,    // Enabled
-            GELATO_OPS
-        );
-        console.log("Automation Configured");
 
         vm.stopBroadcast();
     }
 
-    // =========================================================
-    // SELECTOR HELPERS (Type-Safe & Explicit)
-    // =========================================================
-
-    function getSelectorsCut() internal pure returns (bytes4[] memory s) {
-        s = new bytes4[](1);
-        s[0] = IDiamondCut.diamondCut.selector;
+    function cut(address _facet, bytes4[] memory _sigs) internal pure returns (IDiamondCut.FacetCut memory) {
+        return IDiamondCut.FacetCut({
+            facetAddress: _facet,
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: _sigs
+        });
     }
 
-    function getSelectorsLoupe() internal pure returns (bytes4[] memory s) {
-        s = new bytes4[](5);
-        s[0] = IDiamondLoupe.facets.selector;
-        s[1] = IDiamondLoupe.facetFunctionSelectors.selector;
-        s[2] = IDiamondLoupe.facetAddresses.selector;
-        s[3] = IDiamondLoupe.facetAddress.selector;
-        s[4] = IERC165.supportsInterface.selector;
+    // Selector helper functions
+    function getSelectorsForDiamondCut() internal pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = bytes4(keccak256("diamondCut(((address,uint8,bytes4[]))[],address,bytes)"));
+        return selectors;
     }
 
-    function getSelectorsOwnership() internal pure returns (bytes4[] memory s) {
-        s = new bytes4[](2);
-        s[0] = IERC173.owner.selector;
-        s[1] = IERC173.transferOwnership.selector;
+    function getSelectorsForDiamondLoupe() internal pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](4);
+        selectors[0] = bytes4(keccak256("facets()"));
+        selectors[1] = bytes4(keccak256("facetFunctionSelectors(address)"));
+        selectors[2] = bytes4(keccak256("facetAddresses()"));
+        selectors[3] = bytes4(keccak256("facetAddress(bytes4)"));
+        return selectors;
     }
 
-    function getSelectorsYield() internal pure returns (bytes4[] memory s) {
-        s = new bytes4[](9); 
-        s[0] = YieldAggregatorFacet.deposit.selector;
-        s[1] = YieldAggregatorFacet.withdraw.selector;
-        s[2] = YieldAggregatorFacet.rebalance.selector;
-        s[3] = YieldAggregatorFacet.addStrategy.selector;
-        s[4] = YieldAggregatorFacet.removeStrategy.selector;
-        s[5] = YieldAggregatorFacet.setRebalanceThreshold.selector;
-        s[6] = YieldAggregatorFacet.getUserBalance.selector;
-        s[7] = YieldAggregatorFacet.getBestStrategy.selector;
-        s[8] = YieldAggregatorFacet.getCurrentAPY.selector;
+    function getSelectorsForOwnership() internal pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = bytes4(keccak256("transferOwnership(address)"));
+        selectors[1] = bytes4(keccak256("owner()"));
+        return selectors;
     }
 
-    function getSelectorsGelato() internal pure returns (bytes4[] memory s) {
-        s = new bytes4[](4);
-        s[0] = GelatoAutomationFacet.checker.selector;
-        s[1] = GelatoAutomationFacet.executeRebalance.selector;
-        s[2] = GelatoAutomationFacet.configureGelatoAutomation.selector;
-        s[3] = GelatoAutomationFacet.pauseGelatoAutomation.selector;
+    function getSelectorsForYieldAggregator() internal pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](5);
+        selectors[0] = bytes4(keccak256("deposit(address,uint256)"));
+        selectors[1] = bytes4(keccak256("withdraw(address,uint256)"));
+        selectors[2] = bytes4(keccak256("addStrategy(address,address)"));
+        selectors[3] = bytes4(keccak256("getBestStrategy(address)"));
+        selectors[4] = bytes4(keccak256("setRebalanceThreshold(uint256)"));
+        return selectors;
     }
 
-    function getSelectorsAave() internal pure returns (bytes4[] memory s) {
-        s = new bytes4[](3);
-        s[0] = AaveV3Facet.getReserveData.selector;
-        s[1] = AaveV3Facet.lend.selector;
-        s[2] = AaveV3Facet.withdraw.selector;
+    function getSelectorsForGelato() internal pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = bytes4(keccak256("checker(address)"));
+        selectors[1] = bytes4(keccak256("configureGelatoAutomation(address,address)"));
+        return selectors;
+    }
+
+    function getSelectorsForAave() internal pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = bytes4(keccak256("lend(address,uint256)"));
+        selectors[1] = bytes4(keccak256("withdraw(address,uint256)"));
+        return selectors;
     }
 }

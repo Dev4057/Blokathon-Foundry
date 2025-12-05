@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.0;
 
 /*###############################################################################
 
@@ -34,5 +34,5 @@ interface IAaveV3 {
     /// @notice Withdraws underlying tokens from Aave back to the diamond contract
     /// @param tokenIn The underlying asset address (asset corresponding to the aToken)
     /// @param amountToWithdraw Amount of underlying to withdraw (in token decimals)
-    function withdraw(address tokenIn, uint256 amountToWithdraw) external;
+    function withdrawFromAave(address tokenIn, uint256 amountToWithdraw) external;
 }

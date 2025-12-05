@@ -8,5 +8,6 @@
         "Hackathon",
         "POLYGONSCAN",
         "Thon"
-    ]
+    ],
+    "chat.extensionUnification.enabled": true
 }

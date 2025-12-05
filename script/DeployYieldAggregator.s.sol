@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
 import {AutomationFacet} from "../src/facets/utilityFacets/yieldAggregator/AutomationFacet.sol";
 import {GelatoAutomationFacet} from "../src/facets/utilityFacets/yieldAggregator/GelatoAutomationFacet.sol";
 import {IDiamondCut} from "../src/facets/baseFacets/cut/IDiamondCut.sol";

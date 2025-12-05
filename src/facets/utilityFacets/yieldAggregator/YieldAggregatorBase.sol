@@ -17,8 +17,13 @@ contract YieldAggregatorBase {
         
         require(amount > 0, "Amount must be > 0");
         
-        // Transfer tokens from user
-        IERC20(asset).transferFrom(msg.sender, address(this), amount);
+        // Transfer tokens from user - use try-catch in case token doesn't exist
+        try IERC20(asset).transferFrom(msg.sender, address(this), amount) {
+            // Transfer succeeded
+        } catch {
+            // Transfer failed (token doesn't exist or no balance)
+            revert("Token transfer failed");
+        }
         
         // Find best strategy
         address bestStrategy = _findBestStrategy(asset);
@@ -76,11 +81,18 @@ contract YieldAggregatorBase {
         
         YieldAggregatorStorage.StrategyInfo[] storage strategies = s.assetStrategies[asset];
         
+        if (strategies.length == 0) return address(0);
+        
         uint256 bestAPY = 0;
         address bestStrategy = address(0);
         
         for (uint256 i = 0; i < strategies.length; i++) {
             if (!strategies[i].isActive) continue;
+            
+            // If we haven't found any strategy yet, use the first active one
+            if (bestStrategy == address(0)) {
+                bestStrategy = strategies[i].strategyAddress;
+            }
             
             uint256 apy = IStrategy(strategies[i].strategyAddress).getCurrentAPY(asset);
             

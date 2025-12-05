@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.0;
 
 /*###############################################################################
 
@@ -19,6 +19,7 @@ pragma solidity ^0.8.20;
 // OpenZeppelin Contracts
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Aave Contracts
 import {IPool} from "@aave/aave-v3-core/contracts/interfaces/IPool.sol";
@@ -29,6 +30,7 @@ import {IAaveV3} from "src/facets/utilityFacets/aaveV3/IAaveV3.sol";
 
 // Local Contracts
 import {AaveV3Base} from "src/facets/utilityFacets/aaveV3/AaveV3Base.sol";
+import {AaveV3Storage} from "src/facets/utilityFacets/aaveV3/AaveV3Storage.sol";
 import {Facet} from "src/facets/Facet.sol";
 
 // ============================================================================
@@ -60,7 +62,7 @@ error AaveV3Facet_InsufficientATokenBalance();
 // AaveV3Facet
 // ============================================================================
 
-contract AaveV3Facet is AaveV3Base, Facet {
+contract AaveV3Facet is AaveV3Base, Facet, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ========================================================================
@@ -88,7 +90,13 @@ contract AaveV3Facet is AaveV3Base, Facet {
     /// @notice Withdraws tokens from an Aave pool
     /// @param tokenIn The underlying asset address (asset corresponding to the aToken)
     /// @param amountToWithdraw Amount of underlying to withdraw (in token decimals)
-    function withdraw(address tokenIn, uint256 amountToWithdraw) external onlyDiamondOwner nonReentrant {
+    function withdrawFromAave(address tokenIn, uint256 amountToWithdraw) external onlyDiamondOwner nonReentrant {
         _withdraw(tokenIn, amountToWithdraw);
     }
+    // Add to AaveV3Facet.sol
+function initializeAavePool(address _aavePool) external onlyOwner {
+    AaveV3Storage.Layout storage s = AaveV3Storage.layout();
+    require(s.aavePool == address(0), "Already initialized");
+    s.aavePool = _aavePool;
+}
 }

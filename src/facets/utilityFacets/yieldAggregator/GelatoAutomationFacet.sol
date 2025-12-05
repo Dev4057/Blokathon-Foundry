@@ -201,6 +201,17 @@ contract GelatoAutomationFacet is Facet, YieldAggregatorBase {
     // ═══════════════════════════════════════════════════════════════
     // VIEW FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Get the automation configuration status
+     * @return enabled Whether automation is enabled
+     * @return gelatoOps Address of the Gelato Ops contract
+     */
+    function getAutomationConfig() external view returns (bool enabled, address gelatoOps) {
+        YieldAggregatorStorage.Layout storage s = YieldAggregatorStorage.layout();
+        enabled = s.automationEnabled;
+        gelatoOps = s.automationRegistry;
+    }
     
     /**
      * @notice Preview rebalance status
@@ -238,7 +249,8 @@ contract GelatoAutomationFacet is Facet, YieldAggregatorBase {
         }
         
         // Check if should rebalance
-        (shouldRebalance, bytes memory reasonBytes) = this.checker(asset);
+        bytes memory reasonBytes;
+        (shouldRebalance, reasonBytes) = this.checker(asset);
         reason = string(reasonBytes);
     }
 }
