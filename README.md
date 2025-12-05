@@ -7,7 +7,7 @@
 [![Tests](https://img.shields.io/badge/Tests-14%20Passing-success?style=for-the-badge)]()
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-** Live on Sepolia:** [`0x86D1585985d767A71d69822e5E8D355ce99Df15F`](https://sepolia.etherscan.io/address/0x86D1585985d767A71d69822e5E8D355ce99Df15F)
+** Live on Sepolia:** [`0x72763fF1a703f3526754355AE021a3819E3Ef1AD`](https://sepolia.etherscan.io/address/0x72763fF1a703f3526754355AE021a3819E3Ef1AD)
 
 ---
 
@@ -138,13 +138,13 @@ Traditional contracts have a 24KB size limit. We bypass this with modular facets
         ┌────────────────────────────────┐
         │      STRATEGY LAYER            │
         ├────────────────────────────────┤
-        │  🔵 AaveStrategy (Live)        │
+        │   AaveStrategy (Live)        │
         │     Real Aave V3 integration   │
         │                                │
-        │  🟢 CompoundStrategy (Mock)    │
+        │   CompoundStrategy (Mock)    │
         │     Returns 6% APY for testing │
         │                                │
-        │  🔴 YearnStrategy (Future)     │
+        │   YearnStrategy (Future)     │
         │     Ready for implementation   │
         └────────────────────────────────┘
 ```
