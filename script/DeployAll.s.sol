@@ -16,43 +16,39 @@ import {YieldAggregatorFacet} from "src/facets/utilityFacets/yieldAggregator/Yie
 import {GelatoAutomationFacet} from "src/facets/utilityFacets/yieldAggregator/GelatoAutomationFacet.sol";
 import {AaveV3Facet} from "src/facets/utilityFacets/aaveV3/AaveV3Facet.sol";
 import {AaveStrategy} from "src/facets/utilityFacets/yieldAggregator/strategies/AaveStrategy.sol";
+import {CompoundStrategy} from "src/facets/utilityFacets/yieldAggregator/strategies/CompoundStrategy.sol";
 
 contract DeployAll is Script {
-    // Config (Sepolia Testnet - Update for your target chain)
-    address constant AAVE_POOL = 0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951; // Sepolia
-    address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238; // Sepolia USDC
-    address constant GELATO_OPS = 0xB3f5503f93d5Ef84b06993a1975B9D21B962892F; // Sepolia
+    // Config
+    address constant AAVE_POOL = 0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951;
+    address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+    address constant GELATO_OPS = 0xB3f5503f93d5Ef84b06993a1975B9D21B962892F;
 
     function run() external {
         bytes32 privateKeyBytes = vm.envBytes32("PRIVATE_KEY_ANVIL");
         uint256 key = uint256(privateKeyBytes);
         address deployer = vm.addr(key);
         
-        console.log("====================================");
-        console.log("Deploying Diamond with Yield Aggregator");
+        console.log("Starting deployment");
         console.log("Deployer:", deployer);
-        console.log("====================================");
-        
+        console.log("");
+
         vm.startBroadcast(key);
 
-        // ═══════════════════════════════════════════════════════════
         // STEP 1: Deploy Base Facets
-        // ═══════════════════════════════════════════════════════════
-        console.log("\n[1/6] Deploying Base Facets...");
+        console.log("Deploying Base Facets...");
         
         DiamondCutFacet dCut = new DiamondCutFacet();
-        console.log("  - DiamondCutFacet:", address(dCut));
+        console.log("DiamondCutFacet:", address(dCut));
         
         DiamondLoupeFacet dLoupe = new DiamondLoupeFacet();
-        console.log("  - DiamondLoupeFacet:", address(dLoupe));
+        console.log("DiamondLoupeFacet:", address(dLoupe));
         
         OwnershipFacet ownerF = new OwnershipFacet();
-        console.log("  - OwnershipFacet:", address(ownerF));
+        console.log("OwnershipFacet:", address(ownerF));
 
-        // ═══════════════════════════════════════════════════════════
         // STEP 2: Prepare Base Facet Cuts
-        // ═══════════════════════════════════════════════════════════
-        console.log("\n[2/6] Preparing Base Facet Cuts...");
+        console.log("Preparing Base Facet Cuts...");
         
         IDiamondCut.FacetCut[] memory baseCuts = new IDiamondCut.FacetCut[](3);
         
@@ -74,41 +70,26 @@ contract DeployAll is Script {
             functionSelectors: getSelectorsForOwnership()
         });
 
-        console.log("  - DiamondCut selectors:", baseCuts[0].functionSelectors.length);
-        console.log("  - DiamondLoupe selectors:", baseCuts[1].functionSelectors.length);
-        console.log("  - Ownership selectors:", baseCuts[2].functionSelectors.length);
-
-        // ═══════════════════════════════════════════════════════════
         // STEP 3: Deploy Diamond with Base Facets
-        // ═══════════════════════════════════════════════════════════
-        console.log("\n[3/6] Deploying Diamond...");
+        console.log("Deploying Diamond...");
         
         Diamond diamond = new Diamond(deployer, baseCuts);
-        console.log("  - Diamond deployed at:", address(diamond));
-        
-        // Verify Diamond is working
-        address owner = OwnershipFacet(address(diamond)).owner();
-        console.log("  - Diamond owner:", owner);
-        require(owner == deployer, "Owner mismatch!");
+        console.log("Diamond:", address(diamond));
 
-        // ═══════════════════════════════════════════════════════════
         // STEP 4: Deploy Utility Facets
-        // ═══════════════════════════════════════════════════════════
-        console.log("\n[4/6] Deploying Utility Facets...");
+        console.log("Deploying Utility Facets...");
         
         YieldAggregatorFacet yieldFacet = new YieldAggregatorFacet();
-        console.log("  - YieldAggregatorFacet:", address(yieldFacet));
+        console.log("YieldAggregatorFacet:", address(yieldFacet));
         
         GelatoAutomationFacet gelatoFacet = new GelatoAutomationFacet();
-        console.log("  - GelatoAutomationFacet:", address(gelatoFacet));
+        console.log("GelatoAutomationFacet:", address(gelatoFacet));
         
         AaveV3Facet aaveFacet = new AaveV3Facet();
-        console.log("  - AaveV3Facet:", address(aaveFacet));
+        console.log("AaveV3Facet:", address(aaveFacet));
 
-        // ═══════════════════════════════════════════════════════════
-        // STEP 5: Add Utility Facets to Diamond
-        // ═══════════════════════════════════════════════════════════
-        console.log("\n[5/6] Adding Utility Facets to Diamond...");
+        // STEP 5: Add Utility Facets
+        console.log("Adding Utility Facets...");
         
         IDiamondCut.FacetCut[] memory utilityCuts = new IDiamondCut.FacetCut[](3);
         
@@ -130,59 +111,47 @@ contract DeployAll is Script {
             functionSelectors: getSelectorsForAave()
         });
 
-        console.log("  - YieldAggregator selectors:", utilityCuts[0].functionSelectors.length);
-        console.log("  - Gelato selectors:", utilityCuts[1].functionSelectors.length);
-        console.log("  - Aave selectors:", utilityCuts[2].functionSelectors.length);
-
-        // Add utility facets via DiamondCut
         IDiamondCut(address(diamond)).diamondCut(utilityCuts, address(0), "");
-        console.log("  - Utility facets added successfully!");
+        console.log("Utility facets added");
 
-        // ═══════════════════════════════════════════════════════════
-        // STEP 6: Deploy & Configure Strategy
-        // ═══════════════════════════════════════════════════════════
-        console.log("\n[6/6] Deploying and Configuring Strategy...");
+        // STEP 6: Deploy Strategies
+        console.log("Deploying Strategies...");
         
         AaveStrategy aaveStrategy = new AaveStrategy(AAVE_POOL);
-        console.log("  - AaveStrategy:", address(aaveStrategy));
+        console.log("Aave Strategy:", address(aaveStrategy));
         
-        // Configure Yield Aggregator
+        CompoundStrategy compoundStrategy = new CompoundStrategy();
+        console.log("Compound Strategy:", address(compoundStrategy));
+        
         YieldAggregatorFacet(address(diamond)).addStrategy(USDC, address(aaveStrategy));
-        console.log("  - Strategy registered for USDC");
+        console.log("Aave Strategy registered");
         
-        YieldAggregatorFacet(address(diamond)).setRebalanceThreshold(50); // 0.5%
-        console.log("  - Rebalance threshold set to 0.5%");
+        YieldAggregatorFacet(address(diamond)).addStrategy(USDC, address(compoundStrategy));
+        console.log("Compound Strategy registered");
         
-        // Configure Gelato Automation
+        YieldAggregatorFacet(address(diamond)).setRebalanceThreshold(50);
+        console.log("Rebalance threshold set");
+
+        // STEP 7: Configure Gelato Automation
+        console.log("Configuring Gelato Automation...");
+        
         GelatoAutomationFacet(address(diamond)).configureGelatoAutomation(
-            3600,      // 1 hour cooldown
-            true,      // enabled
-            GELATO_OPS // Gelato Ops address
+            3600,
+            true,
+            GELATO_OPS
         );
-        console.log("  - Gelato automation configured (1 hour cooldown)");
+        console.log("Automation enabled");
 
         vm.stopBroadcast();
 
-        // ═══════════════════════════════════════════════════════════
-        // DEPLOYMENT SUMMARY
-        // ═══════════════════════════════════════════════════════════
-        console.log("\n====================================");
-        console.log("DEPLOYMENT COMPLETE!");
-        console.log("====================================");
-        console.log("Diamond Address:", address(diamond));
+        console.log("");
+        console.log("Deployment complete");
+        console.log("Diamond:", address(diamond));
         console.log("Aave Strategy:", address(aaveStrategy));
-        console.log("Supported Asset:", USDC);
-        console.log("====================================");
-        console.log("\nNext Steps:");
-        console.log("1. Verify Diamond: cast call", address(diamond), '"owner()"');
-        console.log("2. Check Strategy: cast call", address(diamond), '"getBestStrategy(address)"', USDC);
-        console.log("3. Test Deposit: See interaction guide below");
-        console.log("====================================\n");
+        console.log("Compound Strategy:", address(compoundStrategy));
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // SELECTOR HELPER FUNCTIONS
-    // ═══════════════════════════════════════════════════════════════
+    // SELECTOR HELPERS
 
     function getSelectorsForDiamondCut() internal pure returns (bytes4[] memory) {
         bytes4[] memory selectors = new bytes4[](1);
